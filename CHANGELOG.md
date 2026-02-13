@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.3.0](https://github.com/codywilliamson/aboard/compare/v0.2.0...v0.3.0) (2026-02-13)
+
+
+### Features
+
+* search multiple locations for .env config file ([27ab06f](https://github.com/codywilliamson/aboard/commit/27ab06f52421501b6b634a0602ab0b7781d5f2e8))
+
+
+### Bug Fixes
+
+* drawer shows timeline without card selected and strips markdown ([0034e28](https://github.com/codywilliamson/aboard/commit/0034e284396e08da1be796de434a9855f9f8ff4c))
+* release badge to track main branch status [skip ci] ([84c69da](https://github.com/codywilliamson/aboard/commit/84c69da387432bb5e24b6c7fb9414fe1e37aa0aa))
+
 ## [0.2.0](https://github.com/codywilliamson/aboard/compare/v0.1.0...v0.2.0) (2026-02-13)
 
 
