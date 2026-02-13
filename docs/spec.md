@@ -1,155 +1,190 @@
-# Trello Agent TUI Spec
+# aboard spec
 
-## 1. Product Summary
+## product summary
 
-A cross-platform terminal application that lets users:
+a cross-platform terminal kanban board with integrated AI agents. navigate boards, manage cards, and delegate work to local coding agents — all without leaving the terminal.
 
-- browse Trello boards as kanban columns,
-- choose a card as working context,
-- collaborate with local coding agents (`codex`, `claude`) against that context,
-- keep interaction and status history inside the same TUI surface.
+currently backed by trello. architecture is being shaped toward provider-agnostic backends (jira, github projects, linear, local/offline).
 
-Primary platforms: Linux (x86_64), Windows (x86_64)
+platforms: linux (amd64/arm64), windows (amd64/arm64)
 
-## 2. Goals
+## current state (v0.1)
 
-- Kanban-first view: columns = Trello lists, cards inside each column.
-- Minimize context switching between browser, terminal, and AI tools.
-- Polished, intentional UX with vim-style navigation.
-- Fast keyboard workflows with drawer-based card detail + agent interaction.
+### what works
+- kanban view: columns = lists, per-list cursors, horizontal scroll
+- card drawer: detail panel + scrollable agent timeline
+- global prompt bar: agent, move, rename, comment, new card, new list, archive
+- agent integration: codex + claude via configurable CLI commands
+- agent actions: structured `<action>` blocks in agent responses trigger board mutations
+- trello api: full read + write (move, rename, comment, archive, create cards/lists)
+- ci + goreleaser cross-platform releases
 
-## 3. Non-goals (v1)
-
-- Full Trello CRUD (create/edit/archive cards, drag/drop lists).
-- Multi-user collaboration inside the TUI.
-- Persisted local database.
-
-## 4. Layout
-
-### Drawer closed (full kanban)
-
+### architecture
 ```
-┌─────────────────────────────────────────────┐
-│ board name          agent:codex   status    │
-├────────┬────────┬────────┬──────────────────┤
-│ List 1 │ List 2 │ List 3 │ List 4           │
-│>card a │ card d │ card g │                  │
-│ card b │ card e │ card h │                  │
-│ card c │ card f │        │                  │
-├────────┴────────┴────────┴──────────────────┤
-│ h/l: columns  j/k: cards  enter: open  ?   │
-└─────────────────────────────────────────────┘
+cmd/aboard/          entry point
+internal/
+  agent/runner.go    agent CLI execution + prompt building
+  config/config.go   env + .env loading
+  trello/client.go   trello api client (read + write)
+  ui/
+    model.go         root model, routing, focus management
+    messages.go      tea messages + mutation commands
+    kanban.go        kanban columns + navigation
+    drawer.go        card detail + timeline
+    prompt.go        multi-mode prompt bar
+    actions.go       agent action parser + executor
+    boards.go        board selector
+    help.go          help overlay
+    styles.go        lipgloss styles
+    util.go          text helpers
 ```
 
-### Drawer open (~40% kanban / ~60% drawer)
+---
 
+## roadmap
+
+### v0.2 — polish + ux
+
+**card labels + due dates**
+- fetch and display trello labels (color dots) on card rows
+- show due dates in card detail and as subtle indicators in columns
+- filter cards by label (toggle filter mode)
+
+**search**
+- `/` in agent mode types a prompt, but add `ctrl+f` for card search
+- fuzzy match across all cards on the board, jump to result
+
+**card description editing**
+- `d` on a card opens prompt bar in description-edit mode
+- prefill with current description, submit updates via api
+
+**streaming agent output**
+- currently waits for full agent response before displaying
+- stream stdout line-by-line into the timeline viewport
+- show a spinner/progress indicator while agent is running
+
+**better timeline**
+- syntax highlighting for code blocks in agent responses
+- collapsible entries (fold old exchanges)
+- copy timeline entry to clipboard
+
+### v0.3 — provider abstraction
+
+**board provider interface**
+```go
+type BoardProvider interface {
+    Name() string
+    Boards(ctx) ([]Board, error)
+    Lists(ctx, boardID) ([]List, error)
+    Cards(ctx, boardID) ([]Card, error)
+    MoveCard(ctx, cardID, listID) error
+    UpdateCard(ctx, cardID, fields) error
+    AddComment(ctx, cardID, text) error
+    ArchiveCard(ctx, cardID) error
+    CreateCard(ctx, listID, name) (*Card, error)
+    CreateList(ctx, boardID, name) (*List, error)
+    ArchiveList(ctx, listID) error
+}
 ```
-┌─────────────────────────────────────────────┐
-│ board name          agent:codex   status    │
-├────────┬────────┬───────────────────────────┤
-│ List 1 │ List 2 │ Card Detail               │
-│>card a │ card d │ name, list, url, desc     │
-│ card b │ card e │ ─── Prompt ───            │
-│ card c │ card f │ [input field]             │
-│        │        │ ─── Timeline ───          │
-│        │        │ [scrollable output]       │
-├────────┴────────┴───────────────────────────┤
-│ tab: focus  esc: close  enter: send         │
-└─────────────────────────────────────────────┘
-```
 
-## 5. Navigation
+**generic data models**
+- `Board`, `List`, `Card` become provider-agnostic structs in `internal/board/`
+- trello client implements the interface, maps trello-specific fields
+- ui layer only talks to the interface
 
-| Context | Key | Action |
-|---------|-----|--------|
-| Kanban | h/l / ←/→ | Move between columns |
-| Kanban | j/k / ↑/↓ | Move within column |
-| Kanban | enter | Set context card + open drawer |
-| Kanban | 1/2/a | Agent controls |
-| Kanban | r/b | Refresh / board selector |
-| Kanban | q | Quit |
-| Drawer | enter/ctrl+s | Send prompt |
-| Drawer | tab | Focus back to kanban |
-| Drawer | esc | Close drawer |
-| Drawer | ctrl+j/k | Scroll timeline |
-| Global | ctrl+c | Quit |
-| Global | ctrl+a/r/b | Toggle agent / refresh / boards |
-| Global | ? | Toggle help overlay |
+**provider selection**
+- config: `ABOARD_PROVIDER=trello|jira|github|local`
+- board selector shows provider name
+- agent context includes provider-specific metadata
 
-## 6. Architecture
+### v0.4 — jira provider
 
-```
-internal/ui/
-├── model.go      # root model, mode routing, global keys, header/status
-├── messages.go   # tea.Msg types + tea.Cmd constructors
-├── styles.go     # lipgloss styles, badge helper, color palette
-├── boards.go     # board selector (render + update)
-├── kanban.go     # KanbanModel: columns, per-list cursors, h/j/k/l nav
-├── drawer.go     # DrawerModel: card detail + prompt input + timeline
-├── help.go       # HelpModel: modal overlay with keybindings
-└── util.go       # ellipsis, shortID, wrapForPane, clipToLineCount
-```
+- jira cloud rest api v3 integration
+- boards = jira boards, lists = columns/statuses, cards = issues
+- map jira transitions to move operations
+- jira-specific fields: assignee, priority, sprint
+- auth via api token or oauth
 
-### Key data models
+### v0.5 — github projects provider
 
-**KanbanModel**: lists, cards grouped by list ID, list cursor, per-list card cursors, horizontal scroll offset, context card.
+- github projects v2 via graphql api
+- projects = boards, status field values = lists, items = cards
+- leverage existing `gh` cli auth
+- support draft issues + conversion to real issues
 
-**DrawerModel**: current card, text input, scrollable viewport timeline, timeline entries.
+### v0.6 — local/offline mode
 
-### Data flow
+- sqlite-backed local kanban board
+- no external api needed — works fully offline
+- import/export to json
+- sync to remote provider (optional, manual trigger)
+- good for personal task management or air-gapped environments
 
-1. Init → load boards or board data (lists + cards combined)
-2. Board select → pick board → load board data
-3. Kanban mode → navigate columns/cards → enter opens drawer
-4. Drawer → type prompt → send → agent response in timeline
+### v0.7 — multi-agent + mcp
 
-## 7. Functional Requirements
+**agent profiles**
+- named agent configs instead of just codex/claude toggle
+- `aboard.toml` or `~/.config/aboard/agents.toml`:
+  ```toml
+  [agents.codex]
+  command = ["codex", "exec", "{prompt}"]
 
-### FR-1 Auth and Boot
+  [agents.claude]
+  command = ["claude", "-p", "{prompt}"]
 
-- Load config from env and optional `.env` file.
-- Show setup screen if Trello auth vars are missing.
+  [agents.custom]
+  command = ["my-agent", "--context", "{context}"]
+  ```
+- cycle through agents with `a`, pick by number, or `/agent name`
 
-### FR-2 Board Selection
+**mcp server**
+- expose aboard as an mcp server so agents can query board state
+- tools: `get_board`, `get_card`, `move_card`, `create_card`, etc.
+- agents call aboard directly instead of needing `<action>` blocks
 
-- Load open boards for member.
-- Navigate with j/k, open with enter.
+**agent memory**
+- persist agent conversation per card (local sqlite)
+- resume context when reopening a card
 
-### FR-3 Kanban View
+### v0.8 — config file + theming
 
-- Columns = Trello lists in board order.
-- Cards displayed in each column.
-- Auto-size columns: `terminal_width / 24` visible, min 1.
-- Horizontal scrolling when more lists than visible columns.
-- Active column and cursor card highlighted.
+**config file**
+- `aboard.toml` replaces env-only config
+- provider settings, agent configs, keybindings, theme
+- env vars still work as overrides
 
-### FR-4 Drawer
+**custom keybindings**
+- remap any key in config
+- support modifier combos (ctrl, alt, super where terminal allows)
 
-- Card detail: name, list, URL, description.
-- Prompt input for agent interaction.
-- Scrollable timeline of system/user/agent entries.
-- Opens on enter, closes on esc.
+**theming**
+- built-in themes: dark (default), light, catppuccin, gruvbox, nord
+- custom theme via config: colors for header, columns, drawer, prompt, badges
+- `ABOARD_THEME=catppuccin` or in config file
 
-### FR-5 Agent Commands
+### future ideas (unscheduled)
 
-- Support `codex` and `claude` via env-configured commands.
-- `{prompt}` and `{context}` placeholders; stdin fallback.
-- Timeline logs prompts immediately, responses on completion.
-- On failure, restore prompt input for retry.
+- **card checklists** — view and toggle checklist items
+- **card attachments** — list attachments, open urls
+- **board activity feed** — recent actions as a scrollable panel
+- **multi-board view** — split screen with cards from multiple boards
+- **card templates** — create cards from saved templates
+- **time tracking** — start/stop timer on cards, log to comments
+- **webhook listener** — real-time updates via trello/jira webhooks
+- **vim mode** — `:` command bar for power users (``:move card to "Done"``)
+- **plugin system** — lua or wasm plugins for custom card rendering, actions
+- **team presence** — show who else is viewing the board (via provider api)
+- **card dependencies** — visualize blocked/blocking relationships
+- **swimlanes** — group cards by assignee, label, or custom field
+- **bulk operations** — multi-select cards, batch move/archive/label
 
-### FR-6 Feedback and Status
+---
 
-- Header shows board name, active agent badge, status.
-- Footer shows context-sensitive keybindings.
+## design principles
 
-## 8. Acceptance Criteria
-
-- AC-1: Board selector appears when no board ID configured.
-- AC-2: Selecting board shows kanban columns with cards by list.
-- AC-3: h/l navigates columns, j/k navigates cards within column.
-- AC-4: Enter opens drawer with card detail + prompt.
-- AC-5: Sending prompt creates immediate user timeline entry.
-- AC-6: Agent response appears in timeline; errors restore prompt.
-- AC-7: Esc closes drawer, ? shows help overlay.
-- AC-8: Terminal resize works without crash.
-- AC-9: `go build ./cmd/trello-tui` and `go vet ./...` clean.
+1. **keyboard-first** — every action reachable without a mouse
+2. **agent-native** — agents are first-class citizens, not bolted on
+3. **provider-agnostic** — trello today, anything tomorrow
+4. **single binary** — no runtime dependencies, no install scripts
+5. **fast** — sub-second startup, no loading spinners for local ops
+6. **minimal config** — works with just api credentials, everything else optional
