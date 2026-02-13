@@ -1,7 +1,7 @@
 # aboard
 
 [![CI](https://github.com/codywilliamson/aboard/actions/workflows/ci.yml/badge.svg)](https://github.com/codywilliamson/aboard/actions/workflows/ci.yml)
-[![Release](https://github.com/codywilliamson/aboard/actions/workflows/release.yml/badge.svg)](https://github.com/codywilliamson/aboard/releases)
+[![Release](https://github.com/codywilliamson/aboard/actions/workflows/release.yml/badge.svg?branch=main)](https://github.com/codywilliamson/aboard/releases)
 [![Go](https://img.shields.io/github/go-mod/go-version/codywilliamson/aboard)](https://go.dev/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
