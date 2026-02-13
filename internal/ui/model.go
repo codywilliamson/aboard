@@ -751,7 +751,6 @@ func (m *Model) setAgent(next agent.AgentName) {
 	}
 	m.active = next
 	m.status = fmt.Sprintf("agent: %s", m.active)
-	m.drawer.AppendTimeline("system", m.status)
 }
 
 func (m *Model) refreshData() tea.Cmd {

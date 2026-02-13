@@ -31,7 +31,12 @@ func NewDrawerModel() DrawerModel {
 }
 
 func (d *DrawerModel) SetCard(card *trello.Card) {
+	hadCard := d.card != nil
 	d.card = card
+	hasCard := d.card != nil
+	if hadCard != hasCard && d.width > 0 {
+		d.Resize(d.width, d.height)
+	}
 }
 
 func (d *DrawerModel) AppendTimeline(who, text string) {
@@ -54,18 +59,21 @@ func (d *DrawerModel) Resize(w, h int) {
 	d.width = w
 	d.height = h
 	d.timeline.Width = max(20, w-4)
-	d.timeline.Height = max(3, h-12)
+	// reserve space for card detail when a card is open, otherwise just timeline header + borders
+	overhead := 4
+	if d.card != nil {
+		overhead = 12
+	}
+	d.timeline.Height = max(3, h-overhead)
 }
 
 func (d *DrawerModel) View() string {
-	if d.card == nil {
-		return drawerStyle.Width(d.width).Height(d.height).Render(
-			subtleStyle.Render("No card selected."),
-		)
-	}
-
 	innerWidth := max(20, d.width-4)
-	detail := d.renderCardDetail(innerWidth)
+
+	var sections []string
+	if d.card != nil {
+		sections = append(sections, d.renderCardDetail(innerWidth), "")
+	}
 
 	timelineTitle := lipgloss.NewStyle().Bold(true).Render("─── Timeline ───")
 	var timelineContent string
@@ -74,9 +82,9 @@ func (d *DrawerModel) View() string {
 	} else {
 		timelineContent = d.timeline.View()
 	}
-	timeline := lipgloss.JoinVertical(lipgloss.Left, timelineTitle, timelineContent)
+	sections = append(sections, timelineTitle, timelineContent)
 
-	content := lipgloss.JoinVertical(lipgloss.Left, detail, "", timeline)
+	content := lipgloss.JoinVertical(lipgloss.Left, sections...)
 	return drawerStyle.Width(d.width).Height(d.height).Render(content)
 }
 
@@ -98,6 +106,7 @@ func (d *DrawerModel) renderCardDetail(width int) string {
 	if desc == "" {
 		desc = "(no description)"
 	}
+	desc = stripMarkdown(desc)
 	desc = wrapForPane(desc, max(20, width-4))
 
 	title := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("229")).Render(ellipsis(card.Name, width-2))
