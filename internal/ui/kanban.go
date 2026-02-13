@@ -144,7 +144,11 @@ func (k *KanbanModel) renderColumn(list trello.List, width, height int, active b
 	cursor := k.cardCursors[list.ID]
 
 	header := lipgloss.NewStyle().Bold(true).Render(ellipsis(list.Name, width-2))
-	countStr := subtleStyle.Render(fmt.Sprintf("%d cards", len(cards)))
+	noun := "cards"
+	if len(cards) == 1 {
+		noun = "card"
+	}
+	countStr := subtleStyle.Render(fmt.Sprintf("%d %s", len(cards), noun))
 
 	// visible card range — ensure cursor stays in view
 	maxCards := max(1, height-4)

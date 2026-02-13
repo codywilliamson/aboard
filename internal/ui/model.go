@@ -693,18 +693,21 @@ func (m *Model) headerLeft() string {
 		board = "board: " + shortID(m.boardID)
 	}
 	return lipgloss.JoinVertical(lipgloss.Left,
-		heroStyle.Render("Trello Agent TUI"),
+		heroStyle.Render("aboard"),
 		subtleStyle.Render(board),
 	)
 }
 
 func (m *Model) headerRight() string {
-	agentBadge := badge("agent:"+string(m.active), lipgloss.Color("16"), lipgloss.Color("223"))
-	status := statusStyle.Render(m.status)
+	agentLabel := "agent:" + string(m.active)
+	status := m.status
 	if m.errText != "" {
-		status = errorStyle.Render(m.errText)
+		status = m.errText
 	}
-	return lipgloss.JoinVertical(lipgloss.Right, agentBadge, status)
+	return lipgloss.JoinVertical(lipgloss.Right,
+		statusStyle.Render(agentLabel),
+		subtleStyle.Render(status),
+	)
 }
 
 // --- layout ---

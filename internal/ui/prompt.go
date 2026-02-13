@@ -33,6 +33,7 @@ type PromptBar struct {
 
 func NewPromptBar() PromptBar {
 	ti := textinput.New()
+	ti.Prompt = " "
 	ti.Placeholder = "ask the agent..."
 	ti.CharLimit = 1200
 	ti.Width = 60
