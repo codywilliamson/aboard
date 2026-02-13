@@ -65,9 +65,45 @@ form-encoded PUT/POST with key/token as form fields. `getJSON` for reads, `putFo
 - lipgloss v1.0.0 — no `.Copy()` on styles, styles are value types
 - bubbletea — value receiver on `Update` and `View`, pointer receiver on mutation helpers
 - comments: lowercase, informal, minimal
-- commit style: lowercase, short, descriptive
 - DRY/KISS first — minimal abstractions, no premature generalization
 - interfaces defined where consumed (`trelloClient` in model.go, not in trello package)
+
+## commits
+
+**conventional commits required.** all commit messages must follow `<type>: <description>` format.
+
+types: `feat`, `fix`, `refactor`, `perf`, `docs`, `test`, `chore`, `style`
+
+- `feat:` — new feature (bumps minor version)
+- `fix:` — bug fix (bumps patch version)
+- `feat!:` or `fix!:` or `BREAKING CHANGE:` in body — bumps major version
+- all others — no version bump, included in changelog under their section
+
+examples:
+```
+feat: add card label display in kanban columns
+fix: correct column width calculation on narrow terminals
+docs: update roadmap with v0.3 provider abstraction
+refactor: extract board provider interface
+chore: update bubbletea to v1.4.0
+```
+
+multi-line body for context when needed:
+```
+feat: add jira provider
+
+implement BoardProvider interface for jira cloud rest api v3.
+maps jira boards to kanban columns, issues to cards,
+and transitions to move operations.
+```
+
+**do not** use scopes (no `feat(ui):`) — keep it flat and simple.
+
+versioning is automated via release-please:
+- push conventional commits to main
+- release-please opens/updates a release PR with changelog + version bump
+- merging the PR creates a git tag + github release
+- goreleaser builds cross-platform binaries and attaches them
 
 ## key interfaces
 
@@ -136,7 +172,8 @@ command arrays support `{prompt}` and `{context}` placeholders. if no placeholde
 ## ci
 
 - `.github/workflows/ci.yml` — build + vet + test on push/PR to main
-- `.github/workflows/release.yml` — goreleaser on tag push (`v*`)
-- `.goreleaser.yaml` — cross-compile linux/windows amd64/arm64, tar.gz + zip
+- `.github/workflows/release.yml` — release-please (auto version + changelog) + goreleaser (cross-platform binaries) on push to main
+- `.goreleaser.yaml` — cross-compile linux/windows amd64/arm64, tar.gz + zip, appends to release-please releases
+- `release-please-config.json` + `.release-please-manifest.json` — release-please configuration
 
-tag a release: `git tag v0.X.0 && git push origin v0.X.0`
+releases are fully automated: push conventional commits → release-please PR → merge → tag + release + binaries.
