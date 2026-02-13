@@ -157,7 +157,15 @@ all lipgloss styles live in `styles.go`. use existing color constants. the heade
 - **value receivers**: bubbletea requires `Update(msg) (tea.Model, tea.Cmd)` with value receiver. internal mutation helpers use pointer receivers. the root model methods that return `(tea.Model, tea.Cmd)` use value receivers.
 - **no tests yet**: the project has no test files. `go test ./...` passes (no test files = pass). tests are needed.
 
-## env vars
+## configuration
+
+config is loaded from a `.env` file. search order (first found wins):
+1. `--config <path>` / `-c <path>` flag (explicit)
+2. `.env` in current working directory
+3. `<user config dir>/aboard/.env` (`%AppData%\aboard\.env` on windows, `~/.config/aboard/.env` on linux/mac)
+4. `.env` next to the executable
+
+env vars always override file values.
 
 | var | required | description |
 |-----|----------|-------------|

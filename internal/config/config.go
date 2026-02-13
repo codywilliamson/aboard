@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -15,8 +16,11 @@ type Config struct {
 	ClaudeCommand  []string
 }
 
-func LoadFromEnv() Config {
-	_ = loadDotEnv(".env")
+// ConfigPath returns the path of the .env file that was loaded, or empty if none found.
+var ConfigPath string
+
+func Load(explicit string) Config {
+	ConfigPath = loadConfig(explicit)
 
 	return Config{
 		TrelloAPIKey:   os.Getenv("TRELLO_API_KEY"),
@@ -25,6 +29,39 @@ func LoadFromEnv() Config {
 		CodexCommand:   commandFromEnv("TRELLO_TUI_CODEX_COMMAND", []string{"codex"}),
 		ClaudeCommand:  commandFromEnv("TRELLO_TUI_CLAUDE_COMMAND", []string{"claude"}),
 	}
+}
+
+// loadConfig tries to load a .env file from the first location that exists.
+// search order: explicit path > CWD/.env > <user config dir>/aboard/.env > next to executable
+// returns the path that was loaded, or empty string.
+func loadConfig(explicit string) string {
+	if explicit != "" {
+		if loadDotEnv(explicit) == nil {
+			if _, err := os.Stat(explicit); err == nil {
+				return explicit
+			}
+		}
+		return ""
+	}
+
+	candidates := []string{".env"}
+
+	if dir, err := os.UserConfigDir(); err == nil {
+		candidates = append(candidates, filepath.Join(dir, "aboard", ".env"))
+	}
+
+	if exe, err := os.Executable(); err == nil {
+		candidates = append(candidates, filepath.Join(filepath.Dir(exe), ".env"))
+	}
+
+	for _, path := range candidates {
+		if _, err := os.Stat(path); err == nil {
+			_ = loadDotEnv(path)
+			abs, _ := filepath.Abs(path)
+			return abs
+		}
+	}
+	return ""
 }
 
 func commandFromEnv(name string, fallback []string) []string {

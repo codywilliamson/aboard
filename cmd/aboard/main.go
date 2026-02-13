@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"log"
 	"os"
 
@@ -12,7 +13,11 @@ import (
 )
 
 func main() {
-	cfg := config.LoadFromEnv()
+	configPath := flag.String("config", "", "path to .env config file")
+	flag.StringVar(configPath, "c", "", "path to .env config file (shorthand)")
+	flag.Parse()
+
+	cfg := config.Load(*configPath)
 
 	trelloClient := trello.NewClient(cfg.TrelloAPIKey, cfg.TrelloAPIToken)
 	runner := agent.NewRunner(cfg.CodexCommand, cfg.ClaudeCommand)
